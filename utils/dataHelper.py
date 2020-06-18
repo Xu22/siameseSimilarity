@@ -2,6 +2,7 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import os
 from collections import Counter
+import json
 from config import siamese_config as config
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -34,16 +35,21 @@ class InputHelper(object):
                 break
         print('average_length:', average_length)
         print('max_length:', max_length)
+
         return max_length
 
     '''构造数据集'''
-    def build_data(self, config):
+    def build_data(self, config, is_training=True):
         sample_x = []
         sample_y = []
         sample_x_left = []
         sample_x_right = []
         vocabs = {'UNK'}
-        for line in open(config["train_path"], encoding="utf-8"):
+        if is_training:
+            path = config["train_path"]
+        else:
+            path = config["test_file"]
+        for line in open(path, encoding="utf-8"):
             line = line.rstrip().split('\t')
             if not line:
                 continue
@@ -59,18 +65,25 @@ class InputHelper(object):
         sample_x = [sample_x_left, sample_x_right]
 
         datas = [sample_x, sample_y]
-        word_dict = {wd:index for index, wd in enumerate(list(vocabs))}
-        self.write_file(list(vocabs), config["vocab_path"])
+        if is_training:
+            word_dict = {wd:index for index, wd in enumerate(list(vocabs))}
+            self.write_file(word_dict, config["vocab_path"])
+        else:
+            word_dict = ""
         return datas, word_dict
 
     '''将数据转换成tensorflow所需的格式'''
-    def modify_data(self, datas, word_dict, maxlen):
+    def modify_data(self, datas, word_dict, maxlen, is_training=True):
         sample_x = datas[0]
         sample_y = datas[1]
         sample_x_left = sample_x[0]
         sample_x_right = sample_x[1]
-        left_x_train = [[word_dict[char] for char in data] for data in sample_x_left]
-        right_x_train = [[word_dict[char] for char in data] for data in sample_x_right]
+        if is_training:
+            left_x_train = [[word_dict[char] for char in data] for data in sample_x_left]
+            right_x_train = [[word_dict[char] for char in data] for data in sample_x_right]
+        else:
+            left_x_train = [[word_dict.get(char, word_dict["UNK"]) for char in data] for data in sample_x_left]
+            right_x_train = [[word_dict.get(char, word_dict["UNK"]) for char in data] for data in sample_x_right]
         y_train = [int(i) for i in sample_y]
         left_x_train = pad_sequences(left_x_train, maxlen=maxlen)
         right_x_train = pad_sequences(right_x_train, maxlen=maxlen)
@@ -80,7 +93,7 @@ class InputHelper(object):
     '''保存字典文件'''
     def write_file(self, wordlist, filepath):
         with open(filepath, 'w+', encoding="utf-8") as f:
-            f.write('\n'.join(wordlist))
+            f.write(str(wordlist))
 
     '''产生batch数据'''
 
