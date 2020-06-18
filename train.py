@@ -58,11 +58,11 @@ data_helper = InputHelper()
 #选取最佳的len
 maxlen = data_helper.select_best_length(config)
 #构造词表，准备数据
-datas, word_dict = data_helper.build_data(config)
+datas, word_dict = data_helper.build_data(config, is_training=True)
 vocab_size = len(word_dict)
 #数据准备，加载数据
 print("Loading data...")
-left_x_train, right_x_train, y_train = data_helper.modify_data(datas, word_dict, maxlen)
+left_x_train, right_x_train, y_train = data_helper.modify_data(datas, word_dict, maxlen, is_training=True)
 print(left_x_train)
 print(y_train)
 # Training
